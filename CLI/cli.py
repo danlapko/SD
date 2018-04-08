@@ -149,12 +149,15 @@ class Cat(Command):
         self.check()
         numberOfRow = 0
         outputString = ""
+
         for fileName in self.argsFromInput:
             file_in = open(curDir+"/"+fileName, "r")
             for line in file_in.read().splitlines():
                 numberOfRow = numberOfRow + 1
                 outputString += '{0}. {1}\n'.format(numberOfRow, line)
             file_in.close()
+
+
         return outputString
 
 
@@ -168,7 +171,7 @@ class Wc(Command):
     def run(self):
         self.check()
         numberOfLine, numberOfChar, numberOfByte = 0, 0, 0
-        outputString = ""
+        outputString = "0 0 0\n"
         for text in self.argsFromInput:
             lineInFile = len(text.splitlines())
             charInFile = len(text.split())
@@ -177,7 +180,7 @@ class Wc(Command):
             numberOfLine, numberOfChar, numberOfByte = numberOfLine + lineInFile, numberOfChar + charInFile, numberOfByte + byteInFile
 
         if len(self.argsFromInput) > 1:
-            outputString += (" {} {} {} {}\n".format(numberOfLine, numberOfChar, numberOfByte, "total"))
+            outputString += ("{} {} {} {}\n".format(numberOfLine, numberOfChar, numberOfByte, "total"))
         return outputString
 
 
@@ -212,7 +215,7 @@ class Assignment(Command):
     '''
     def __init__(self):
         super(Assignment, self).__init__()
-        self.minNumberOfArgs = 2
+        self.maxNumberOfArgs = 2
         self.minNumberOfArgs = 2
 
     def run(self):
@@ -357,15 +360,14 @@ class Executor:
     def launch(self, comandsToRun):
         '''
         :param comandsToRun: array for Commands
-        :return:
+        :return: string: result of proceeded command
         '''
         result = None
         for comand in comandsToRun:
             if result is not None:
                 comand.argsFromInput.append(result)
             result = comand.run()
-        if result is not None:
-            print(result, end='')
+        return result
 
 
 curDir = os.getcwd()
@@ -376,10 +378,23 @@ lexer = Lexer()
 variabls = {}
 run = True
 
-while(run):
-    userInput = input()
-    lexer.launch(userInput)
-    parser.launch(lexer.lexerOut)
-    answer = executor.launch(parser.parserOut)
-    if answer is not None:
-        print(answer)
+class Control:
+    '''
+    Wrap up on infinite loop
+    '''
+    def launch(self):
+        '''
+        Start of all program
+        '''
+        while(run):
+            try:
+                userInput = input()
+                lexer.launch(userInput)
+                parser.launch(lexer.lexerOut)
+                answer = executor.launch(parser.parserOut)
+                if answer is not None:
+                    print(answer, end="")
+            except Exception as  e:
+                print(str(e))
+
+
