@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+from pathlib import Path
 
 
 class Lexer:
@@ -8,6 +9,7 @@ class Lexer:
     You should first launch instance of lexer on inputString
     from console to proceed all occurrences of variables from environment.
     '''
+
     def __init__(self):
         self.defaultInitilizate()
 
@@ -44,6 +46,7 @@ class Lexer:
 
                 self.lexerOut += character
                 continue
+
             def dump():
                 '''
                 Service function. Change variable on it value.
@@ -92,10 +95,12 @@ class Token:
     '''
     pass
 
-class Arguments(Token): # not used but might be in next version
+
+class Arguments(Token):  # not used but might be in next version
     pass
 
-class Parametrs(Token): # not used but might be in next version
+
+class Parametrs(Token):  # not used but might be in next version
     pass
 
 
@@ -104,6 +109,7 @@ class Command(Token):
     Abstract class for commands
     All commands use string as interface for communication
     '''
+
     def __init__(self):
         self.argsFromInput = []
         self.paramsFromInput = []
@@ -131,7 +137,6 @@ class Exit(Command):
         self.maxNumberOfArgs = 0
         self.minNumberOfArgs = 0
 
-
     def run(self):
         self.check()
         global run
@@ -142,6 +147,7 @@ class Cat(Command):
     '''
     Cat can only open files by relative name from current directory
     '''
+
     def __init__(self):
         super(Cat, self).__init__()
 
@@ -151,12 +157,11 @@ class Cat(Command):
         outputString = ""
 
         for fileName in self.argsFromInput:
-            file_in = open(curDir+"/"+fileName, "r")
+            file_in = open(curDir + "/" + fileName, "r")
             for line in file_in.read().splitlines():
                 numberOfRow = numberOfRow + 1
                 outputString += '{0}. {1}\n'.format(numberOfRow, line)
             file_in.close()
-
 
         return outputString
 
@@ -165,6 +170,7 @@ class Wc(Command):
     '''
     Take string for evaluations
     '''
+
     def __init__(self):
         super(Wc, self).__init__()
 
@@ -188,6 +194,7 @@ class Echo(Command):
     '''
     Just remove '' and ""
     '''
+
     def run(self):
         self.check()
         output = ""
@@ -213,6 +220,7 @@ class Assignment(Command):
     '''
     Always execute first.
     '''
+
     def __init__(self):
         super(Assignment, self).__init__()
         self.maxNumberOfArgs = 2
@@ -223,10 +231,86 @@ class Assignment(Command):
         variabls[self.argsFromInput[0]] = self.argsFromInput[1]
 
 
+class Cd(Command):
+    def __init__(self):
+        super(Cd, self).__init__()
+        self.maxNumberOfArgs = 1
+        self.minNumberOfArgs = 0
+
+    def run(self):
+        self.check()
+
+        global curDir
+        cur_path = Path(curDir)
+
+        if len(self.argsFromInput) == 0:
+            cur_path = Path.home()
+        else:
+            path_to = Path(self.argsFromInput[0])
+
+            if path_to.is_absolute():
+                cur_path = path_to
+            else:
+                cur_path = cur_path.joinpath(path_to)
+
+        os.chdir(str(cur_path.absolute()))
+        curDir = str(Path.cwd())
+
+
+class Ls(Command):
+    def __init__(self):
+        super(Ls, self).__init__()
+        self.maxNumberOfArgs = 100
+        self.minNumberOfArgs = 0
+
+    def _chdir(self, dir=""):
+
+        global curDir
+        cur_path = Path(curDir)
+
+        if dir == "":
+            cur_path = Path.home()
+        else:
+            path_to = Path(dir)
+
+            if path_to.is_absolute():
+                cur_path = path_to
+            else:
+                cur_path = cur_path.joinpath(path_to)
+
+        os.chdir(str(cur_path.absolute()))
+        curDir = str(Path.cwd())
+
+    def run(self):
+        self.check()
+        cur_path = Path(curDir)
+        output = ""
+
+        if len(self.argsFromInput) == 0:
+            output = " ".join(map(lambda path: str(path.relative_to(cur_path)), cur_path.glob("*")))
+        elif len(self.argsFromInput) == 1:
+            arg = self.argsFromInput[0]
+
+            # print(Path(".").glob("*"))
+            arg_path = Path(arg)
+            parts = arg_path.parts
+            if arg_path.name == "":
+                arg += "*"
+            output = " ".join(map(str, Path(".").glob(arg)))
+        else:
+            for arg in self.argsFromInput:
+                output += "\n" + arg + ": " + " ".join(
+                    map(lambda path: str(path.relative_to(cur_path)), cur_path.glob(arg + "/*")))
+
+        output += "\n"
+        return output
+
+
 class Others(Command):
     '''
     try subprocess for every not implemented comand
     '''
+
     def run(self):
         try:
             unknownOut = subprocess.check_output(self.argsFromInput)
@@ -240,6 +324,7 @@ class Buffer:
     Class exist for purpose of polymorphism.
     Parser use it to keep some word.
     '''
+
     def __init__(self):
         self.value = ""
 
@@ -262,6 +347,7 @@ class Parser:
     split input string on sequence of commands
     bounded by pipeline
     '''
+
     def __init__(self):
         self.buf = Buffer()
         self.parserOut = []
@@ -275,7 +361,7 @@ class Parser:
         '''
         self.parserOut = []
         stringsSplitByPipe = []
-        #flag for consideration of ''
+        # flag for consideration of ''
         skip = False
 
         for char in inputString:
@@ -293,8 +379,9 @@ class Parser:
         for each in stringsSplitByPipe:
             words = []
             self.buf.clear()
-            runnable = True #if sequnce insade of '' it shold not interpritate
-            openSpace = False #considering sequnce insade "" and ''
+            runnable = True  # if sequnce insade of '' it shold not interpritate
+            openSpace = False  # considering sequnce insade "" and ''
+
             def dump(isRunable):
                 '''
                 Just to eliminate extra code copy/paste
@@ -357,6 +444,7 @@ class Executor:
     Run commands one by one. Also transfer output from one to input other.
     After all commands print result of their work.
     '''
+
     def launch(self, comandsToRun):
         '''
         :param comandsToRun: array for Commands
@@ -371,22 +459,24 @@ class Executor:
 
 
 curDir = os.getcwd()
-listOfCommands = {"exit":Exit, "wc":Wc, "cat":Cat, "echo":Echo, "pwd":Pwd, "=":Assignment}
+listOfCommands = {"exit": Exit, "wc": Wc, "cat": Cat, "echo": Echo, "pwd": Pwd, "cd": Cd, "ls": Ls, "=": Assignment}
 executor = Executor()
 parser = Parser()
 lexer = Lexer()
 variabls = {}
 run = True
 
+
 class Control:
     '''
     Wrap up on infinite loop
     '''
+
     def launch(self):
         '''
         Start of all program
         '''
-        while(run):
+        while (run):
             try:
                 userInput = input()
                 lexer.launch(userInput)
@@ -396,5 +486,3 @@ class Control:
                     print(answer, end="")
             except Exception as  e:
                 print(str(e))
-
-
