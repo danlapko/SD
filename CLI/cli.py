@@ -107,10 +107,10 @@ class Parametrs(Token):  # not used but might be in next version
 
 
 class Command(Token):
-    '''
+    """
     Abstract class for commands
     All commands use string as interface for communication
-    '''
+    """
 
     def __init__(self):
         self.argsFromInput = []
@@ -120,9 +120,9 @@ class Command(Token):
         self.listOfSupportedParam = {}
 
     def check(self):
-        '''
+        """
         command check its parameters before launch
-        '''
+        """
         if len(self.argsFromInput) > self.maxNumberOfArgs or len(self.argsFromInput) < self.minNumberOfArgs:
             raise Exception("Unsupported numbers of args for command {}".format(self.__class__.__name__))
         for param in self.paramsFromInput:
@@ -146,9 +146,9 @@ class Exit(Command):
 
 
 class Cat(Command):
-    '''
+    """
     Cat can only open files by relative name from current directory
-    '''
+    """
 
     def __init__(self):
         super(Cat, self).__init__()

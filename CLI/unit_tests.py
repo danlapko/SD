@@ -1,6 +1,7 @@
 import unittest
 from cli import *
 
+
 class TestCLIClases(unittest.TestCase):
     def test_cat(self):
         cat = Cat()
@@ -14,7 +15,7 @@ class TestCLIClases(unittest.TestCase):
         self.assertTrue(pwd.run(), os.getcwd())
         pwd.argsFromInput = ["ex"]
         with self.assertRaises(Exception):
-           pwd.run()
+            pwd.run()
 
     def test_echo(self):
         echo = Echo()
@@ -47,12 +48,10 @@ class TestCLIClases(unittest.TestCase):
         with self.assertRaises(Exception):
             assignment.run()
 
-
     def test_others(self):
         other = Others()
         other.argsFromInput = ["ls"]
         other.run()
-
 
     def test_lexer(self):
         global variabls
@@ -91,12 +90,32 @@ class TestCLIClases(unittest.TestCase):
         cat.argsFromInput = ["example"]
         wc = Wc()
         wc.argsFromInput = []
-       # print(executor.launch([cat]))
+        # print(executor.launch([cat]))
         self.assertTrue(executor.launch([cat]), '1. example text\n')
         self.assertTrue(executor.launch([wc]), '0 0 0\n')
         self.assertTrue(executor.launch([cat, wc]), '0 0 0\n')
         with self.assertRaises(Exception):
             executor.launch([wc, cat])
+
+    def test_cd_ls(self):
+        executor = Executor()
+        cd = Cd()
+        cd.argsFromInput = [".."]
+
+        pwd = Pwd()
+        pwd.argsFromInput = []
+
+        pwd_before_cd = executor.launch([pwd])
+        pwd_level_up = pwd_before_cd.split('/')
+        pwd_level_up = "".join(pwd_level_up[:-1])
+        self.assertTrue(executor.launch([cd, pwd]), pwd_level_up + '\n')
+
+        ls = Ls()
+        ls.argsFromInput = ["../SD/CL*/*.py"]
+        self.assertTrue(executor.launch([ls]), '../CLI/unit_tests.py\n'
+                                               '../CLI/launcher.py\n'
+                                               '../CLI/cli.py\n')
+
 
 if __name__ == '__main__':
     run = 0
