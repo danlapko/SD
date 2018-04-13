@@ -1,7 +1,9 @@
 import os
 import sys
 import subprocess
+from collections import deque
 from pathlib import Path
+import heapq
 
 
 class Lexer:
@@ -258,52 +260,76 @@ class Cd(Command):
 
 
 class Ls(Command):
+    """
+    Supports wildcard '*'
+    """
+
     def __init__(self):
         super(Ls, self).__init__()
         self.maxNumberOfArgs = 100
         self.minNumberOfArgs = 0
 
-    def _chdir(self, dir=""):
-
-        global curDir
-        cur_path = Path(curDir)
-
-        if dir == "":
-            cur_path = Path.home()
-        else:
-            path_to = Path(dir)
-
-            if path_to.is_absolute():
-                cur_path = path_to
-            else:
-                cur_path = cur_path.joinpath(path_to)
-
-        os.chdir(str(cur_path.absolute()))
-        curDir = str(Path.cwd())
-
     def run(self):
         self.check()
         cur_path = Path(curDir)
-        output = ""
+        result = []
 
         if len(self.argsFromInput) == 0:
-            output = " ".join(map(lambda path: str(path.relative_to(cur_path)), cur_path.glob("*")))
-        elif len(self.argsFromInput) == 1:
-            arg = self.argsFromInput[0]
+            result.append(" ".join(map(lambda path: str(path.relative_to(cur_path)), cur_path.glob("*"))) + "\n")
+        elif len(self.argsFromInput) > 0:
+            for pattern in self.argsFromInput:
+                if pattern[0:1] != "./" and pattern[0] != "." and pattern[0] != "/":
+                    pattern = "./" + pattern
+                paths_to_list = self._get_paths_from_pattern(pattern)
+                for path in paths_to_list:
+                    if os.path.isfile(path):
+                        result.append(path + "\n")
+                    else:
+                        result.append(path + ":\n" + " ".join(os.listdir(path)) + "\n")
+        result = sorted(result, reverse=True)
+        return "".join(result)
 
-            # print(Path(".").glob("*"))
-            arg_path = Path(arg)
-            parts = arg_path.parts
-            if arg_path.name == "":
-                arg += "*"
-            output = " ".join(map(str, Path(".").glob(arg)))
-        else:
-            for arg in self.argsFromInput:
-                output += "\n" + arg + ": " + " ".join(
-                    map(lambda path: str(path.relative_to(cur_path)), cur_path.glob(arg + "/*")))
+    @staticmethod
+    def _get_paths_from_pattern(pattern):
+        result = set()
+        q = deque()
+        q.append(pattern)
 
-        output += "\n"
-        return output
+        while len(q):
+            pattern = q.popleft()
+            parts = pattern.split("/")
+            is_pattern_without_stars = True
+
+            for i, part in enumerate(parts):
+                if '*' in part:
+                    is_pattern_without_stars = False
+
+                    pattern_before_star = "/".join(parts[:i])
+                    pattern_after_star = "/".join(parts[i + 1:])
+
+                    try:
+                        subfile_names = os.listdir(pattern_before_star)
+                    except FileNotFoundError as e:
+                        continue
+
+                    subdirs = [pattern_before_star + "/" + subdir + "/" + pattern_after_star
+                               for subdir in subfile_names if
+                               ((os.path.isdir(pattern_before_star + "/" + subdir) or i == len(parts) - 1)
+                                and Path(pattern_before_star + "/" + subdir).match(
+                                           pattern_before_star + "/" + parts[i]))]
+
+                    for subdir in subdirs:
+                        q.append(subdir)
+
+                    break
+
+            if is_pattern_without_stars:
+                if pattern[-1] == "/":
+                    pattern = pattern[:-1]
+                if os.path.exists(pattern):
+                    result.add(pattern)
+
+        return result
 
 
 class Others(Command):
